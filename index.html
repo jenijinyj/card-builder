@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Your Sabah Getaway — Card Section</title>
+
+<!-- ============================================================
+     组件样式（这一段可以原样贴进投放后台）
+     ============================================================ -->
+<style id="sbg-component-style">
+.sbg{
+  --sbg-ink:#0f294d;
+  --sbg-muted:#4a5f7d;
+  --sbg-line:#e7edf6;
+  --sbg-brand:#287dfa;
+  --sbg-radius:16px;
+  box-sizing:border-box;
+  max-width:1160px;          /* 内容宽度 1160，和页面其他模块对齐 */
+  margin:0 auto;
+  padding:48px 0 56px;
+  background:transparent;     /* 背景透明，直接透出页面本身的底色 */
+  color:var(--sbg-ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.sbg *,.sbg *::before,.sbg *::after{box-sizing:border-box}
+
+.sbg__head{display:flex;flex-direction:column;gap:8px;margin:0 0 26px;text-align:center}
+.sbg__title{margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-.3px}
+.sbg__sub{margin:0 auto;font-size:15px;line-height:1.6;color:var(--sbg-muted);max-width:680px}
+
+/* 网格：列数按卡片数量自动算（JS 里的 colsFor），默认 stretch —— 同一行卡片天然等高
+   4 张 → 4 列；5 张 → 3 列（3+2）；6 张 → 3 列（3×2）；8 张 → 4 列 */
+.sbg__grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:20px;
+  align-items:stretch;
+}
+.sbg__grid[data-cols="1"]{grid-template-columns:minmax(0,1fr)}
+.sbg__grid[data-cols="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sbg__grid[data-cols="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sbg__grid[data-cols="4"]{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+/* 平板：最多两列 */
+@media (max-width:1023px){
+  .sbg__grid[data-cols="3"],
+  .sbg__grid[data-cols="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+.sbg-card{
+  display:flex;              /* 竖向弹性布局，卡片自己撑满整行高度 */
+  flex-direction:column;
+  height:100%;
+  background:#fff;
+  border:1px solid var(--sbg-line);
+  border-radius:var(--sbg-radius);
+  overflow:hidden;
+  text-decoration:none;
+  color:inherit;
+  box-shadow:0 2px 12px rgba(15,41,77,.06);
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+/* 只有填了链接的卡片才有悬停/可点击状态 */
+.sbg-card:not(.sbg-card--static):hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 26px rgba(15,41,77,.14);
+  border-color:#d8e3f3;
+}
+.sbg-card--static{cursor:default}
+
+/* 图片区：强制 4:3，object-fit:cover 自动裁切，不需要人工对齐 */
+.sbg-card__media{
+  position:relative;
+  width:100%;
+  aspect-ratio:4 / 3;
+  background:linear-gradient(135deg,#dbe7f7 0%,#eef4fb 55%,#e3edf9 100%);
+  overflow:hidden;
+}
+.sbg-card__media img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  transition:transform .35s ease;
+}
+.sbg-card:not(.sbg-card--static):hover .sbg-card__media img{transform:scale(1.04)}
+
+/* 没有填图片时的占位块 */
+.sbg-card__ph{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;
+  font-size:12px;line-height:1.5;font-weight:600;letter-spacing:.4px;
+  color:#8ea3bd;text-transform:uppercase;
+  padding:16px;
+}
+
+/* 文字区：描述吃掉剩余高度，底部链接永远贴底 —— 卡片长短自动一致 */
+.sbg-card__body{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  flex:1;
+  padding:16px 18px 18px;
+}
+.sbg-card__tag{
+  align-self:flex-start;
+  display:inline-block;
+  font-size:11px;
+  line-height:1.6;
+  font-weight:700;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  color:#1a6fe0;
+  background:#eaf2ff;
+  border-radius:999px;
+  padding:2px 10px;
+}
+.sbg-card__title{
+  margin:0;
+  font-size:18px;
+  line-height:1.3;
+  font-weight:700;
+  min-height:2.6em;          /* 预留两行，描述起点对齐；标题更长时自然撑开 */
+}
+.sbg-card__text{
+  margin:0;
+  flex:1;                    /* 撑满剩余空间，把链接压到底部 */
+  font-size:14px;
+  line-height:1.6;
+  color:var(--sbg-muted);
+  /* 不限制行数：文字完整显示，卡片高度由同一行最高的那张决定 */
+}
+.sbg-card__link{
+  margin-top:10px;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:14px;
+  font-weight:600;
+  color:var(--sbg-brand);
+}
+.sbg-card__link svg{
+  width:14px;height:14px;flex:none;
+  transition:transform .2s ease;
+}
+.sbg-card:not(.sbg-card--static):hover .sbg-card__link svg{transform:translateX(3px)}
+
+/* 视口比 1160 窄时补上左右留白 */
+@media (max-width:1200px){
+  .sbg{padding-left:24px;padding-right:24px}
+}
+@media (max-width:640px){
+  .sbg{padding:32px 16px 40px}
+  .sbg__title{font-size:23px}
+  .sbg__sub{font-size:14px}
+  .sbg__grid[data-cols]{grid-template-columns:1fr;gap:16px}
+  .sbg-card__media{aspect-ratio:2 / 1}   /* 移动端按 2:1 裁切 */
+}
+</style>
+
+<!-- ============================================================
+     页面外壳 + 编辑器样式（这部分不用贴进后台）
+     ============================================================ -->
+<style>
+html,body{margin:0;padding:0}
+body{background:#f2f5f9}
+
+/* 编辑按钮 */
+.sbg-edit-btn{
+  position:fixed;right:22px;bottom:22px;z-index:60;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:11px 18px;border:0;border-radius:999px;
+  background:#0f294d;color:#fff;
+  font-size:13px;font-weight:600;font-family:inherit;
+  cursor:pointer;box-shadow:0 8px 22px rgba(15,41,77,.28);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.sbg-edit-btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,41,77,.34)}
+
+/* 编辑面板 */
+.sbg-editor{
+  position:fixed;inset:0;z-index:70;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  background:rgba(12,26,46,.55);
+}
+.sbg-editor[hidden]{display:none}
+/* 编辑面板在组件外面，需要单独补 box-sizing，否则输入框会撑出边界 */
+.sbg-editor *,.sbg-editor *::before,.sbg-editor *::after{box-sizing:border-box}
+.sbg-editor__box{
+  width:min(760px,100%);height:min(820px,90vh);
+  display:flex;flex-direction:column;
+  background:#fff;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px rgba(9,22,40,.35);
+}
+.sbg-editor__bar{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 18px;border-bottom:1px solid #e8eef6;
+}
+.sbg-editor__bar strong{font-size:14px;color:#0f294d;white-space:nowrap}
+.sbg-editor__hint{font-size:12px;color:#7c8ea8;flex:1;line-height:1.4}
+.sbg-editor__saved{
+  font-size:12px;font-weight:600;color:#2e9e5b;white-space:nowrap;
+  opacity:0;transition:opacity .2s ease;
+}
+.sbg-editor__saved.on{opacity:1}
+.sbg-editor__saved.bad{color:#c62828}
+.sbg-editor__close{
+  border:0;background:#f1f5fa;color:#5b7291;
+  width:30px;height:30px;border-radius:8px;cursor:pointer;
+  font-size:15px;line-height:1;font-family:inherit;
+}
+.sbg-editor__close:hover{background:#e6edf7;color:#0f294d}
+
+.sbg-editor__scroll{flex:1;overflow:auto;padding:16px 18px 4px;background:#fbfcfe}
+
+/* 表单 */
+.sbg-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.sbg-field > span{
+  font-size:11px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:#7c8ea8;
+}
+.sbg-field input,.sbg-field textarea{
+  width:100%;border:1px solid #dde6f2;border-radius:9px;
+  padding:9px 11px;
+  font:13px/1.5 inherit;color:#1d3557;background:#fff;
+  outline:none;resize:vertical;
+}
+.sbg-field input:focus,.sbg-field textarea:focus{
+  border-color:#8ab4f8;box-shadow:0 0 0 3px rgba(40,125,250,.12);
+}
+.sbg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.sbg-row .sbg-field{margin-bottom:0}
+.sbg-imgrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:12px}
+.sbg-imgrow .sbg-field{margin-bottom:0}
+.sbg-thumb{
+  width:58px;height:44px;border-radius:8px;border:1px dashed #d5e0ee;
+  background:#f2f7fd;overflow:hidden;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:#9fb2c9;
+}
+.sbg-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* 单张卡片 */
+.sbg-carditem{
+  border:1px solid #e3ebf5;border-radius:12px;
+  background:#fff;padding:14px 14px 2px;margin-bottom:12px;
+}
+.sbg-carditem__head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;
+}
+.sbg-carditem__head b{font-size:12px;color:#0f294d}
+.sbg-carditem__head .tools{display:flex;gap:6px}
+.tools button{
+  border:1px solid #e0e8f2;background:#fff;border-radius:7px;
+  padding:3px 8px;font-size:12px;color:#5b7291;
+  cursor:pointer;font-family:inherit;
+}
+.tools button:hover{background:#f4f8fd}
+.tools button:disabled{opacity:.35;cursor:default}
+.tools button.danger:hover{background:#fff1f1;border-color:#f3c2c2;color:#c62828}
+
+.sbg-add{
+  width:100%;padding:11px;margin-bottom:14px;
+  border:1px dashed #c7d8ec;border-radius:11px;background:#fff;
+  color:#287dfa;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+}
+.sbg-add:hover{background:#f5f9ff;border-color:#9dc0ea}
+
+.sbg-editor__actions{
+  display:flex;gap:10px;align-items:center;
+  padding:12px 18px;border-top:1px solid #e8eef6;background:#fff;
+}
+.sbg-editor__actions button{
+  padding:9px 18px;border-radius:9px;border:1px solid #d9e3f0;
+  background:#fff;color:#31465f;font-size:13px;font-weight:600;
+  font-family:inherit;cursor:pointer;
+}
+.sbg-editor__actions button:hover{background:#f5f9ff;border-color:#c3d6ee}
+.sbg-editor__actions button.primary{background:#287dfa;border-color:#287dfa;color:#fff}
+.sbg-editor__actions button.primary:hover{background:#1a6fe0;border-color:#1a6fe0}
+.sbg-editor__actions .spacer{flex:1}
+
+/* 轻提示 */
+.sbg-toast{
+  position:fixed;left:50%;bottom:36px;transform:translate(-50%,12px);
+  z-index:80;padding:10px 20px;border-radius:10px;
+  background:#0f294d;color:#fff;font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;
+}
+.sbg-toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+
+<body>
+
+<!-- 组件本体 -->
+<section class="sbg" id="sbgSection">
+  <div class="sbg__head">
+    <h2 class="sbg__title" id="sbgTitle">Plan Your Sabah Getaway</h2>
+    <p class="sbg__sub" id="sbgSub"></p>
+  </div>
+  <div class="sbg__grid" id="sbgGrid"></div>
+</section>
+
+<!-- 编辑按钮 + 面板 -->
+<button class="sbg-edit-btn" id="sbgEditBtn" type="button">✎ 编辑内容</button>
+
+<div class="sbg-editor" id="sbgEditor" hidden>
+  <div class="sbg-editor__box">
+    <div class="sbg-editor__bar">
+      <strong>内容编辑</strong>
+      <span class="sbg-editor__hint">改动会自动保存，刷新、关掉都不会丢</span>
+      <span class="sbg-editor__saved" id="sbgSaved"></span>
+      <button class="sbg-editor__close" id="sbgClose" type="button">✕</button>
+    </div>
+    <div class="sbg-editor__scroll" id="sbgForm"></div>
+    <div class="sbg-editor__actions">
+      <button class="primary" id="sbgApply" type="button">保存并预览</button>
+      <button id="sbgCopy" type="button">复制静态 HTML</button>
+      <span class="spacer"></span>
+      <button id="sbgReset" type="button">恢复默认</button>
+    </div>
+  </div>
+</div>
+
+<div class="sbg-toast" id="sbgToast"></div>
+
+<script>
+/* ============================================================
+   1. 内容数据 —— 代码改法：只改这一块
+   ------------------------------------------------------------
+   tag      : 卡片左上角的小标签（留空则隐藏）
+   title    : 卡片标题
+   text     : 卡片描述（最多显示 4 行，多了自动省略号）
+   img      : 图片地址，PC 自动裁成 4:3、移动端 2:1
+   link     : 点卡片跳转的链接（留空则整张卡片不可点击）
+   linkText : 底部链接文案（留空则不显示）
+   ============================================================ */
+const DEFAULT_SECTION = {
+  title: "Plan Your Sabah Getaway",
+  subtitle: "Four bases, four different Sabahs. Pick one — or string them together for a longer trip.",
+  cards: [
+    {
+      tag: "City & Islands",
+      title: "Kota Kinabalu",
+      text: "The capital and the easiest way in. Sunset at Tanjung Aru, island hopping in Tunku Abdul Rahman Marine Park, and seafood along the waterfront.",
+      img: "",
+      link: "",
+      linkText: "Explore hotels"
+    },
+    {
+      tag: "Diving",
+      title: "Semporna",
+      text: "The jump-off point for Sipadan and Mabul. Turquoise water, world-class dive sites and stilt villages built straight over the reef.",
+      img: "",
+      link: "",
+      linkText: "Explore hotels"
+    },
+    {
+      tag: "Wildlife",
+      title: "Sandakan",
+      text: "Sabah's wild east. Meet orphaned orangutans at Sepilok, cruise the Kinabatangan for proboscis monkeys, and catch the turtle islands at dusk.",
+      img: "",
+      link: "",
+      linkText: "Explore hotels"
+    },
+    {
+      tag: "Highlands",
+      title: "Kundasang",
+      text: "Cool air and mountain views under Mount Kinabalu. Vegetable farms, grazing dairy cows and sunrises that break above a sea of clouds.",
+      img: "",
+      link: "",
+      linkText: "Explore hotels"
+    }
+  ]
+};
+
+/* ============================================================
+   2. 渲染（一般不用改）
+   ============================================================ */
+/* 内容自动存在本机浏览器里：改一个字就存一次，刷新、关掉都不会丢 */
+const STORE_KEY = "sbg_section_v2";
+const LEGACY_KEY = "sbg_section_v1";
+
+function readStore(key){
+  try{
+    const raw = localStorage.getItem(key);
+    if(!raw) return null;
+    const o = JSON.parse(raw);
+    const data = (o && o.data) ? o.data : o;   // 兼容旧格式
+    return (data && Array.isArray(data.cards)) ? data : null;
+  }catch(e){ return null; }
+}
+function loadSaved(){
+  return readStore(STORE_KEY) || readStore(LEGACY_KEY);
+}
+function showSavedTime(ok){
+  const el = $("sbgSaved");
+  if(!el) return;
+  const d = new Date();
+  el.textContent = ok
+    ? "已保存 " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
+    : "浏览器没允许保存";
+  el.classList.toggle("bad", !ok);
+  el.classList.add("on");
+}
+function saveData(obj){
+  let ok = false;
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({ at: Date.now(), data: obj }));
+    ok = true;
+  }catch(e){}
+  showSavedTime(ok);
+}
+function clearLocal(){
+  try{
+    localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  }catch(e){}
+}
+let saveTimer = null;
+function queueSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { if (DRAFT) saveData(DRAFT); }, 400);
+}
+
+let SECTION = loadSaved() || clone(DEFAULT_SECTION);
+let DRAFT = null;
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function $(id){ return document.getElementById(id); }
+
+function esc(v){
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (m) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]
+  ));
+}
+
+function cardHTML(c){
+  const media = c.img
+    ? `<img src="${esc(c.img)}" alt="${esc(c.title)}" loading="lazy">`
+    : `<div class="sbg-card__ph">Image</div>`;
+
+  /* 没填链接（或只填了 #）时，卡片不做成 <a>，也不显示悬停/箭头 */
+  const link = String(c.link || "").trim();
+  const hasLink = link !== "" && link !== "#";
+  const tag = hasLink ? "a" : "div";
+  const attrs = hasLink ? ` href="${esc(link)}"` : "";
+  const cls = "sbg-card" + (hasLink ? "" : " sbg-card--static");
+
+  return `<${tag} class="${cls}"${attrs}>
+      <div class="sbg-card__media">${media}</div>
+      <div class="sbg-card__body">
+        ${c.tag ? `<span class="sbg-card__tag">${esc(c.tag)}</span>` : ""}
+        <h3 class="sbg-card__title">${esc(c.title)}</h3>
+        <p class="sbg-card__text">${esc(c.text)}</p>
+        ${hasLink && c.linkText ? `<span class="sbg-card__link">${esc(c.linkText)}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h13M13 6l6 6-6 6"/>
+          </svg></span>` : ""}
+      </div>
+    </${tag}>`;
+}
+
+/* 列数规则：4 张以内一行摆完；5 张以上在 2–4 列里挑「行数最少、留白最少」的方案
+   4→4  5→3  6→3  7→4  8→4  9→3  10→4  12→4 */
+function colsFor(n){
+  if (n <= 0) return 1;
+  if (n <= 4) return n;
+
+  let best = 2, bestRows = Infinity, bestGap = Infinity;
+  for (let c = 2; c <= 4; c++){
+    const rows = Math.ceil(n / c);
+    const gap = rows * c - n;          // 最后一行空出来的位置数
+    if (rows < bestRows ||
+        (rows === bestRows && gap < bestGap) ||
+        (rows === bestRows && gap === bestGap && c > best)) {
+      best = c; bestRows = rows; bestGap = gap;
+    }
+  }
+  return best;
+}
+
+function render(){
+  const cards = SECTION.cards || [];
+  $("sbgTitle").textContent = SECTION.title || "";
+  $("sbgSub").textContent = SECTION.subtitle || "";
+  $("sbgGrid").dataset.cols = String(colsFor(cards.length));
+  $("sbgGrid").innerHTML = cards.map(cardHTML).join("");
+}
+
+render();
+
+/* ============================================================
+   3. 编辑器 / 导出（一般不用改）
+   ============================================================ */
+function toast(msg){
+  const t = $("sbgToast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+function field(label, key, value, placeholder){
+  return `<label class="sbg-field"><span>${label}</span>
+    <input data-f="${key}" value="${esc(value)}" placeholder="${esc(placeholder || "")}">
+  </label>`;
+}
+
+function cardItemHTML(c, i, n){
+  return `<div class="sbg-carditem" data-i="${i}">
+    <div class="sbg-carditem__head">
+      <b>卡片 ${i + 1}</b>
+      <div class="tools">
+        <button type="button" data-act="up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button type="button" data-act="down" ${i === n - 1 ? "disabled" : ""}>↓</button>
+        <button type="button" data-act="del" class="danger">删除</button>
+      </div>
+    </div>
+
+    <div class="sbg-row">
+      ${field("标签 tag", "tag", c.tag, "如 Diving")}
+      ${field("链接文案 linkText", "linkText", c.linkText, "如 Explore hotels")}
+    </div>
+
+    ${field("标题 title", "title", c.title, "卡片标题")}
+
+    <label class="sbg-field"><span>描述 text</span>
+      <textarea data-f="text" rows="4" placeholder="卡片描述">${esc(c.text)}</textarea>
+    </label>
+
+    <div class="sbg-imgrow">
+      <label class="sbg-field"><span>图片地址 img</span>
+        <input data-f="img" value="${esc(c.img)}" placeholder="https://... 留空则显示灰色占位块">
+      </label>
+      <div class="sbg-thumb">${c.img ? `<img src="${esc(c.img)}" alt="">` : "IMG"}</div>
+    </div>
+
+    ${field("跳转链接 link", "link", c.link, "填 URL；留空则整张卡片不可点击")}
+  </div>`;
+}
+
+function buildCards(){
+  const box = $("sbgCards");
+  if (!box) return;
+  box.innerHTML = DRAFT.cards.map((c, i) => cardItemHTML(c, i, DRAFT.cards.length)).join("");
+}
+
+function buildForm(){
+  const f = $("sbgForm");
+  f.innerHTML = `
+    <label class="sbg-field"><span>大标题 title</span>
+      <input data-k="title" value="${esc(DRAFT.title)}">
+    </label>
+    <label class="sbg-field"><span>副标题 subtitle</span>
+      <input data-k="subtitle" value="${esc(DRAFT.subtitle)}">
+    </label>
+    <div id="sbgCards"></div>
+    <button class="sbg-add" type="button" id="sbgAdd">＋ 添加一张卡片</button>
+  `;
+  buildCards();
+}
+
+/* —— 打开 / 关闭 —— */
+function openEditor(){
+  DRAFT = clone(SECTION);
+  buildForm();
+  $("sbgEditor").hidden = false;
+  $("sbgForm").scrollTop = 0;
+}
+/* 关闭面板时把草稿落定，避免「改完直接点叉」丢掉内容 */
+function closeEditor(){
+  if (DRAFT) {
+    SECTION = clone(DRAFT);
+    saveData(SECTION);
+    render();
+  }
+  $("sbgEditor").hidden = true;
+}
+
+$("sbgEditBtn").addEventListener("click", openEditor);
+$("sbgClose").addEventListener("click", closeEditor);
+$("sbgEditor").addEventListener("click", (e) => {
+  if (e.target === $("sbgEditor")) closeEditor();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("sbgEditor").hidden) closeEditor();
+});
+
+/* —— 输入即写进草稿，不重绘，避免光标丢失 —— */
+$("sbgForm").addEventListener("input", (e) => {
+  const t = e.target;
+
+  if (t.dataset.k) {
+    DRAFT[t.dataset.k] = t.value;
+    queueSave();
+    return;
+  }
+  if (!t.dataset.f) return;
+
+  const item = t.closest(".sbg-carditem");
+  if (!item) return;
+  const i = Number(item.dataset.i);
+  DRAFT.cards[i][t.dataset.f] = t.value;
+  queueSave();
+
+  if (t.dataset.f === "img") {
+    const thumb = item.querySelector(".sbg-thumb");
+    thumb.innerHTML = t.value.trim()
+      ? `<img src="${esc(t.value.trim())}" alt="">`
+      : "IMG";
+  }
+});
+
+/* —— 排序 / 删除 / 新增 —— */
+$("sbgForm").addEventListener("click", (e) => {
+  const addBtn = e.target.closest("#sbgAdd");
+  if (addBtn) {
+    DRAFT.cards.push({ tag: "", title: "New card", text: "", img: "", link: "", linkText: "Explore hotels" });
+    buildCards();
+    queueSave();
+    $("sbgForm").scrollTop = $("sbgForm").scrollHeight;
+    return;
+  }
+
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const item = btn.closest(".sbg-carditem");
+  const i = Number(item.dataset.i);
+
+  if (btn.dataset.act === "del") {
+    DRAFT.cards.splice(i, 1);
+  } else if (btn.dataset.act === "up" && i > 0) {
+    [DRAFT.cards[i - 1], DRAFT.cards[i]] = [DRAFT.cards[i], DRAFT.cards[i - 1]];
+  } else if (btn.dataset.act === "down" && i < DRAFT.cards.length - 1) {
+    [DRAFT.cards[i + 1], DRAFT.cards[i]] = [DRAFT.cards[i], DRAFT.cards[i + 1]];
+  }
+  buildCards();
+  queueSave();
+});
+
+/* —— 应用 —— */
+$("sbgApply").addEventListener("click", () => {
+  SECTION = clone(DRAFT);
+  saveData(SECTION);
+  render();
+  $("sbgEditor").hidden = true;
+  toast("已保存");
+});
+
+/* —— 恢复默认 —— */
+$("sbgReset").addEventListener("click", () => {
+  DRAFT = clone(DEFAULT_SECTION);
+  SECTION = clone(DEFAULT_SECTION);
+  clearLocal();
+  render();
+  buildForm();
+  toast("已恢复默认内容");
+});
+
+/* —— 导出静态 HTML（不带脚本，可直接贴投放后台）—— */
+$("sbgCopy").addEventListener("click", async () => {
+  SECTION = clone(DRAFT);
+  saveData(SECTION);
+  render();
+
+  const style = $("sbg-component-style").textContent;
+  const html = "<!-- Plan Your Sabah Getaway -->\n<style>\n" + style.trim() + "\n</style>\n\n" +
+               $("sbgSection").outerHTML;
+
+  try {
+    await navigator.clipboard.writeText(html);
+    toast("静态 HTML 已复制");
+  } catch (err) {
+    const ta = document.createElement("textarea");
+    ta.value = html;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    toast("静态 HTML 已复制");
+  }
+});
+</script>
+</body>
+</html>
