@@ -27,8 +27,8 @@
 .sbg *,.sbg *::before,.sbg *::after{box-sizing:border-box}
 
 .sbg__head{display:flex;flex-direction:column;gap:8px;margin:0 0 26px;text-align:center}
-.sbg__title{margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-.3px}
-.sbg__sub{margin:0 auto;font-size:15px;line-height:1.6;color:var(--sbg-muted);max-width:680px}
+.sbg__title{margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-.3px;color:var(--sbg-heading,#0f294d)}
+.sbg__sub{margin:0 auto;font-size:15px;line-height:1.6;color:var(--sbg-sub,#4a5f7d);max-width:680px}
 
 /* 网格：列数按卡片数量自动算（JS 里的 colsFor），默认 stretch —— 同一行卡片天然等高
    4 张 → 4 列；5 张 → 3 列（3+2）；6 张 → 3 列（3×2）；8 张 → 4 列 */
@@ -124,14 +124,15 @@
   font-size:18px;
   line-height:1.3;
   font-weight:700;
-  min-height:2.6em;          /* 预留两行，描述起点对齐；标题更长时自然撑开 */
+  color:var(--sbg-cardtitle,#0f294d);
+  /* 不预留空行：标题一行就是一行，下面紧接描述 */
 }
 .sbg-card__text{
   margin:0;
   flex:1;                    /* 撑满剩余空间，把链接压到底部 */
   font-size:14px;
   line-height:1.6;
-  color:var(--sbg-muted);
+  color:var(--sbg-text,#4a5f7d);
   /* 不限制行数：文字完整显示，卡片高度由同一行最高的那张决定 */
 }
 .sbg-card__link{
@@ -147,6 +148,8 @@
   width:14px;height:14px;flex:none;
   transition:transform .2s ease;
 }
+/* 填了文案但没填链接：灰色显示，不可点 */
+.sbg-card__link--off{color:#93a6bf;cursor:default}
 .sbg-card:not(.sbg-card--static):hover .sbg-card__link svg{transform:translateX(3px)}
 
 /* 视口比 1160 窄时补上左右留白 */
@@ -230,10 +233,15 @@ body{background:#f2f5f9}
   font:13px/1.5 inherit;color:#1d3557;background:#fff;
   outline:none;resize:vertical;
 }
+.sbg-field input[type="color"]{
+  height:38px;padding:3px 4px;cursor:pointer;background:#fff;
+}
 .sbg-field input:focus,.sbg-field textarea:focus{
   border-color:#8ab4f8;box-shadow:0 0 0 3px rgba(40,125,250,.12);
 }
 .sbg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.sbg-row--4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:480px){.sbg-row--4{grid-template-columns:repeat(2,1fr)}}
 .sbg-row .sbg-field{margin-bottom:0}
 .sbg-imgrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:12px}
 .sbg-imgrow .sbg-field{margin-bottom:0}
@@ -346,6 +354,10 @@ body{background:#f2f5f9}
 const DEFAULT_SECTION = {
   title: "Plan Your Sabah Getaway",
   subtitle: "Four bases, four different Sabahs. Pick one — or string them together for a longer trip.",
+  headingColor: "#0f294d",
+  subColor: "#4a5f7d",
+  cardTitleColor: "#0f294d",
+  textColor: "#4a5f7d",
   cards: [
     {
       tag: "City & Islands",
@@ -451,6 +463,7 @@ function cardHTML(c){
   /* 没填链接（或只填了 #）时，卡片不做成 <a>，也不显示悬停/箭头 */
   const link = String(c.link || "").trim();
   const hasLink = link !== "" && link !== "#";
+  const linkTxt = String(c.linkText || "").trim();
   const tag = hasLink ? "a" : "div";
   const attrs = hasLink ? ` href="${esc(link)}"` : "";
   const cls = "sbg-card" + (hasLink ? "" : " sbg-card--static");
@@ -458,14 +471,16 @@ function cardHTML(c){
   return `<${tag} class="${cls}"${attrs}>
       <div class="sbg-card__media">${media}</div>
       <div class="sbg-card__body">
-        ${c.tag ? `<span class="sbg-card__tag">${esc(c.tag)}</span>` : ""}
+        ${(c.tag || "").trim() ? `<span class="sbg-card__tag">${esc(c.tag)}</span>` : ""}
         <h3 class="sbg-card__title">${esc(c.title)}</h3>
         <p class="sbg-card__text">${esc(c.text)}</p>
-        ${hasLink && c.linkText ? `<span class="sbg-card__link">${esc(c.linkText)}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12h13M13 6l6 6-6 6"/>
-          </svg></span>` : ""}
+        ${linkTxt ? (hasLink
+          ? `<span class="sbg-card__link">${esc(linkTxt)}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h13M13 6l6 6-6 6"/>
+              </svg></span>`
+          : `<span class="sbg-card__link sbg-card__link--off">${esc(linkTxt)}</span>`) : ""}
       </div>
     </${tag}>`;
 }
@@ -489,8 +504,18 @@ function colsFor(n){
   return best;
 }
 
+/* 标题色 / 描述色：写成组件的 CSS 变量，导出时一起带走 */
+function applyTheme(src){
+  const sec = $("sbgSection");
+  sec.style.setProperty("--sbg-heading", src.headingColor || "#0f294d");
+  sec.style.setProperty("--sbg-sub", src.subColor || "#4a5f7d");
+  sec.style.setProperty("--sbg-cardtitle", src.cardTitleColor || "#0f294d");
+  sec.style.setProperty("--sbg-text", src.textColor || "#4a5f7d");
+}
+
 function render(){
   const cards = SECTION.cards || [];
+  applyTheme(SECTION);
   $("sbgTitle").textContent = SECTION.title || "";
   $("sbgSub").textContent = SECTION.subtitle || "";
   $("sbgGrid").dataset.cols = String(colsFor(cards.length));
@@ -527,10 +552,7 @@ function cardItemHTML(c, i, n){
       </div>
     </div>
 
-    <div class="sbg-row">
-      ${field("标签 tag", "tag", c.tag, "如 Diving")}
-      ${field("链接文案 linkText", "linkText", c.linkText, "如 Explore hotels")}
-    </div>
+    ${field("标签 tag", "tag", c.tag, "如 Diving")}
 
     ${field("标题 title", "title", c.title, "卡片标题")}
 
@@ -544,6 +566,8 @@ function cardItemHTML(c, i, n){
       </label>
       <div class="sbg-thumb">${c.img ? `<img src="${esc(c.img)}" alt="">` : "IMG"}</div>
     </div>
+
+    ${field("链接文案 linkText", "linkText", c.linkText, "如 Explore hotels")}
 
     ${field("跳转链接 link", "link", c.link, "填 URL；留空则整张卡片不可点击")}
   </div>`;
@@ -564,6 +588,20 @@ function buildForm(){
     <label class="sbg-field"><span>副标题 subtitle</span>
       <input data-k="subtitle" value="${esc(DRAFT.subtitle)}">
     </label>
+    <div class="sbg-row sbg-row--4">
+      <label class="sbg-field"><span>页面标题色</span>
+        <input type="color" data-k="headingColor" value="${esc(DRAFT.headingColor || "#0f294d")}">
+      </label>
+      <label class="sbg-field"><span>副标题色</span>
+        <input type="color" data-k="subColor" value="${esc(DRAFT.subColor || "#4a5f7d")}">
+      </label>
+      <label class="sbg-field"><span>卡片标题色</span>
+        <input type="color" data-k="cardTitleColor" value="${esc(DRAFT.cardTitleColor || "#0f294d")}">
+      </label>
+      <label class="sbg-field"><span>描述文字色</span>
+        <input type="color" data-k="textColor" value="${esc(DRAFT.textColor || "#4a5f7d")}">
+      </label>
+    </div>
     <div id="sbgCards"></div>
     <button class="sbg-add" type="button" id="sbgAdd">＋ 添加一张卡片</button>
   `;
@@ -602,6 +640,7 @@ $("sbgForm").addEventListener("input", (e) => {
 
   if (t.dataset.k) {
     DRAFT[t.dataset.k] = t.value;
+    applyTheme(DRAFT);
     queueSave();
     return;
   }
